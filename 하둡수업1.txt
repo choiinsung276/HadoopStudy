@@ -1,0 +1,769 @@
+vm에서 -> 우클릭 설정 -> 네트워크 
+
+
+192.168.31.1
+
+(1) 하둡 multi-node 클러스터
+	맵리듀스 task tracker 어떤 작업을 수행하는지 
+	master = task tracker = name node
+	
+	ifconfig // ip주소 확인 
+
+java -version // 현재 java 버전 확인 
+
+which java // java 어디 있는지 확인 
+
+rpm -qa | grep jdk // jdk로 시작?하는 파일 찾기 
+
+yum remove java* // java파일 모두 삭제 
+
+which java // 삭제 잘 됐는지 확인 
+
+cd /usr/local
+
+ll
+
+tar -zxvf jdk-11.0.8_linux-x64_bin.tar.gz  // (jdk 치고 tab키 누르면 파일명 자동 완성됨.) 압축풀기 완료!
+
+ll
+
+rm jdk-11.0.8_linux-x64_bin.tar.gz  // 압축파일 삭제 
+y
+
+ll 
+
+mv jdk-11.0.8 jdk11 // 파일명을 jdk11로 변경 
+
+gedit /etc/profile // 메모장같은게 열림 
+열린 창에서 !!!!!!!!!
+맨 밑에
+
+export JAVA_HOME=/usr/local/jdk11 
+export PATH=$PATH:$JAVA_HOME/bin
+export CLASSPATH="."
+export JAVA_OPTS="-Dfile.encoding=UTF-8"
+↑↑
+추가 환경변수 설정 같은 거임 ㅇㅇ
+= 사이에 공백 있으면 안됨~~~~~~~~~~~~~~~
+
+저장하고 닫기 
+
+다시 터미널로 돌아와서 ... 
+
+source /etc/profile
+
+java // 실행되는지 확인!
+
+java -version // 11.0.8 버전인지 확인!
+
+javac // 실행되는지 확인!
+
+$JAVA_HOME 
+
+*터미널 껐다가 켜면 안되니까 만약에 터미널 껐으면 재부팅하고 다시 터미널 켜기~~
+
+
+	
+	wordcount 라는 프로그램을 실행한다. 하둡-맵리듀스-예제-2.10.0.jar 에는 여러 프로그램이 있다. 
+	$HADOOP_HOME/etc/hadoop/hadoop-env.sh 파일을 읽겠다.
+	결과값은 wordcount_output
+	어떤 파일을 실행시킬지. 
+	
+	wordcount_output 폴더에 결과가 저장되있음
+	gedit part-r-00000  
+	단어들을 확인해본결과 특수문자 앞에 알파벳 순으로 숫자개수 확인
+	
+	하둡실습
+	(1) 독립모드
+		-하둡 환경설정
+		gedit /etc/profile
+		export HADOOP_HOME=/root/hadoop2
+		export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+		
+		export HDFS_NAMENODE_USER="root"
+		export HDFS_DATANODE_USER="root"
+		export HDFS_SECONDARYNAMENODE_USER="root"
+		export YARN_RESOURCEMANAGER_USER="root"
+		export YARN_NODEMANAGER_USER="root"
+		저장 후 재부팅 hadoop version 확인
+		
+		hadoop jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.10.0.jar
+		wordcount $HADOOP_HOME/etc/hadoop/hadoop-env.sh wordcount_output
+		
+	의사 분산 모드 
+	(1) 인증키 작성(비밀키와 공개키 생성)
+	ssh localhost
+	exit 
+	ssh localhost
+	ssh localhost
+	2개의 서버 
+	exit
+	exit
+	2번의 로그아웃
+	- root디렉토리에서 
+		ls -al
+		cd .ssh
+		ssh-keygen -t rsa
+		공개키와 비밀키 생성됨
+		어디에 위치시킬것이냐 ender
+		전부 enter로 기본값
+		ll 로 확인하면 id_rsa, id_rsa.pub
+	- 공개키를 상대서버(slave)에 전송
+		cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+	- 다시 접속 테스트
+		ssh localhost  
+		3번해도 패스워드 물어보지 않음 
+		
+(2) hadoop 세팅
+	- gedit $HADOOP_HOME/etc/hadoop/hadoop-env.sh
+	export JAVA_HOME=/usr/local/jdk11
+	jdk 설치 경로 
+	
+	- gedit $HADOOP_HOME/etc/hadoop/core-site.xml
+	<configuration>
+		<property>
+			<name>fs.defaultFS</name>
+			<value>hdfs://localhost:9000</value>
+		</property>
+	</configuration>
+	
+	- gedit $HADOOP_HOME/etc/hadoop/hdfs-site.xml
+	<configuration>
+		<property>
+			<name>dfs.replication</name>
+			<value>1</value>
+		</property>
+	</configuration>
+	데이터를 저장할때 하나에 서버에 저장하는게 아니라 나눠서 저장하니까
+	데이터를 저장하는 블록의 개수 ,복제될 파일의 개수 
+	
+	사용자는 어떤데이터가 어떤 서버에 있는지 모름 namenode의 도움을 받는다.
+	hdfs는 분산데이터
+(3) 네임노드 포맷
+		하드디스크를 준비하는 명령 
+		hdfs라는 프로그램을 이용하여 네임노드 옵션과 포맷
+		hdfs namenod -format
+(4) 하둡 클러스터 시작(하둡 분산 파일 시스템 시작)
+	start-dfs.sh
+(5) jps로 프로세스 확인
+	jps
+	NameNode
+	DataNode
+	SecondaryNameNode
+(6)
+(7) stop-dfs.sh 
+	정상적으로 종료하기
+	
+	HDFS LAYER - 여러컴퓨터에 데이터를 나누어서 저장하는 기술 
+	네임노드 - 실제 데이터가 어디 있는지 알려줌 
+(8) 모니터링
+	- 로컬에서 확인 : http://localhost:50070
+	localhost:9000(active) 마스터의 주소
+	하드용량, dfs used 얼마나 쓰고있는지 
+	Live Nodes 슬레이브 몇개인지 
+	(DataNode) 정보 따로
+	호스트 			호스트포트		게스트ip		게스트 포트 
+	192.168.10.1 	50070	 10.0.2.15 		50070
+	192.168.10.1 	8080   	10.0.2.15 		8080
+	192.168.10.1	22		10.0.2.15     	22
+	
+	-원격으로 확인 : http://192.168.10.1:50070
+	-리눅스에서 방화벽 개방
+	firewall-cmd --zone=public --add-port=50070/tcp --permanent
+	firewall-cmd --reload
+	
+(9) YARN 실행 : NodeManager, ResourceManager 두개가 실행됨
+	start-yarn.sh
+	jps
+
+(10) ResourceManager를 모니터링 
+	- 로컬에서 확인 : http://localhost:8088  <- 리눅스에서
+	
+(11) 종료 
+	stop-dfs.sh
+	jps 3개의 프로세스 사라짐
+	start-yarn.sh
+	jps
+	
+(12) hdfs 활용
+	start-dfs.sh
+	
+	hdfs dfs -mkdir /user
+	hdfs라는 가상의 공간에 만들어지는것
+	hdfs dfs -ls /
+	
+	hdfs dfs -mkdir /user/root
+	hdfs dfs -mkdir /user/centos
+	hdfs dfs -ls /user
+	
+	hdfs dfs -mkdir /user/root/conf
+	hdfs dfs -ls -R /
+	전부다 보여주는것
+
+	cd hadoop2
+	ll 
+	README.txt 를 hdfs 로 업로드 하는 예제 
+	hdfs dfs -copyFromLocal $HADOOP_HOME/README.txt /user
+	-copyFromLocal 로컬에 있는걸 복사해라 , readme.txt 파일을, /user 폴더에
+	(데이터 노드가 없을경우 에러가남)
+	
+	업로드한 파일을 wordcount 실행시키는 명령어 
+	hadoop jar
+	$HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.10.0.jar
+	wordcount
+	/user/README.txt 
+	wordcount_output
+	
+	hdfs dfs -ls 
+	wordcount_output폴더가 만들어진것을 확인 가능
+	hdfs dfs -ls wordcount_output
+	hdfs dfs -cat wordcount_output/part-r-00000
+	
+(3) 완전 분산 모드
+	1) 시스템 구성
+		host os : windows
+		virtual machine : virtualbox
+			- ip: 192.168.10.1
+		guest os1 : master
+			- ram : 4g
+			- hdd : 30g
+			- ip : 10.0.2.15
+			- ip : 192.168.10.10 (정하기 나름임)내부네트워크이므로
+		guest os2 : slave1
+			- ram : 2g
+			- hdd : 30g
+			- ip : 192.168.10.11
+		guest os3 : slave2
+			- ram : 2g
+			- hdd : 30g
+			- ip : 192.168.10.12
+		guest os4 : slave3
+			- ram : 2g
+			- hdd : 30g
+			- ip :  192.168.10.13
+			
+	centos 완전한 복제 
+		slave들 우클릭해서 설정 -> 시스템 -> 렘 2기가
+		
+	vm 이 192.168.10.1 => 마스터인 10.0.2.15 접근했었는데
+	똑같아서 충돌이난다. 
+	마스터에서 랜카드를 2개 달아줘야함 하나는 vmbox와 연결하고 
+	다른 하나는 slave들에 연결해줘야함
+	
+	2) 마스터에 랜카드 하나 추가 
+		vm 관리자 -> 파일 -> 호스트 네트워크 관리자 -> 만들기 
+		ipv4 주소를 192.168.10.2 로 바꾸기
+		(dhcp 서버 = ip를 할당해주는것, 체크하면 slave서버들의 아이피가 바뀌므로 체크안함)
+		
+		마스터 -> 설정 -> 네트워크 -> 어탭터2 체크 , 호스트전용 어댑터 , 이름은 2번째로한거
+		(어댑터 1은 vm 과 통신)
+		
+		나머지 슬레이브들도 똑같은 작업으로 어댑터 사용하기 
+		
+		- 마스터 리눅스 켜기 
+		좌측 프로그램 ->시스템도구 -> 설정 -> 네트워크 
+		랜카드(이더넷)가 두개 달린것을 확인 할수있다.
+		
+		마스터에서 설정
+		cd /etc/sysconfig/network-scripts/
+		ll
+		
+		cat ifcfg-enp0s3
+			TYPE이 ethernet 으로 되있음 bootproto 타입이 dhcp 로 되있는지 
+			두번째 랜카드에서는 dhcp 를 고정으로 해야됨
+			enp0s8의 내용이 없음 직접 만들어줘야함 
+			
+			gedit ifcfg-enp0s8
+			다음과같은 내용을 작성
+			DEVICE=enp0s8
+			ONBOOT=yes
+			BOOTPROTO=static
+			IPADDR=192.168.10.10
+			NETMASK=255.255.255.0
+			-------------------------
+			
+			systemctl restart network
+			ifconfig
+			
+			enp0s8이 192.168.10.10 으로 바뀐것을 확인하면
+			
+			=========================
+			나머지 slave들도 동일하게 설정(ip만 다르게)
+			
+	- ping 명령어로 확인
+		master에서
+			ping 192.168.10.11
+			ping 192.168.10.12
+			테스트 해보기 , 테스트 후 ctrl+c
+			
+		slave1에서
+			ping 192.168.10.10
+			ping 192.168.10.12
+			
+		slave2에서
+			ping 192.168.10.10
+			ping 192.168.10.11
+			
+	ssh 192.168.10.11 
+	했을때 구별이 안된다. localhost 로 되있어서 slave인지 마스터인지 
+	
+	3) 각 guest os 의 host명을 변경(모든 노드에서 실행)
+		gedit /etc/hosts
+		---------------------------
+		127.0.0.1 localhost
+		192.168.10.10 master
+		192.168.10.11 slave1
+		192.168.10.12 slave2
+		
+	4) host 와 hostname을 일치시키는 작업
+		master에서
+			gedit /etc/hostname
+			다음과같이 작성하기
+			------------------
+			master 
+			-------------------
+			
+			/bin/hostname -F /etc/hostname
+			reboot
+			
+		slave1에서
+			gedit /etc/hostname
+			다음과같이 작성하기
+			------------------
+			slave1 
+			-------------------
+			
+			/bin/hostname -F /etc/hostname
+			reboot
+		나머지 slave2 도 동일
+		
+		master에서 ping테스트 하기
+			ping slave1
+			ping slave2
+		
+	5) 인증키전달
+		/.ssh/authorized_keys 파일에 인증키가 다있음 복제를 한것이라서
+		마스터에서 확인해보기
+			ssh slave1 
+			exit
+			ssh slave2 
+			exit
+			
+		모든 slave에서도 동일하게 테스트( 비밀번호 물어보는지)
+		
+		==만약 안되는경우 ==
+		r : recursive : 하위 디렉토리 및 파일을 모두 전송	
+		p : persistence : 원본파일 수정/사용시간 및 권한 유지함
+		scp ~rp ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+		root@slave1에게
+		scp ~rp ~/.ssh/id_rsa.pub >> root@slave1:~/.ssh/authorized_keys
+		scp ~rp ~/.ssh/id_rsa.pub >> root@slave2:~/.ssh/authorized_keys
+			
+	6) 하둡 세팅
+		a) hadoop-env.sh 수정(master에서만)
+			gedit $HADOOP_HOME/etc/hadoop/hadoop-env.sh
+			
+			자바의 경로 수정
+			
+			export HADOOP_PID_DIR=/root/hadoop2/pids
+			
+		b) core-site.xml(모든 노드에서 실행)
+		- gedit $HADOOP_HOME/etc/hadoop/core-site.xml
+			<configuration>
+				<property>
+					<name>fs.defaultFS</name>
+					<value>hdfs://master:9000</value>
+				</property>
+			</configuration>
+			
+		c) hdfs-site.xml수정(마스터에서만)
+			디렉토리 만들기
+			rm -rf $HADOOP_HOME/namenode
+			mkdir $HADOOP_HOME/namenode
+			cd $HADOOP_HOME/
+			ll 
+			namenod확인하기, 소유권 바꾸기(특정위치 소유권을 다바꾸겠다)
+			chown root -R namenode (굳이 안해도됨 root로 되있음)
+			chmod 777 namenode  ( ll 로 확인하기
+			
+			(노예도 전부다)
+			rm -rf $HADOOP_HOME/datanode
+			mkdir $HADOOP_HOME/datanode
+			cd $HADOOP_HOME/
+			ll 
+			namenod확인하기, 소유권 바꾸기(특정위치 소유권을 다바꾸겠다)
+			chown root -R datanode (굳이 안해도됨 root로 되있음)
+			chmod 777 datanode
+
+			( ll 로 확인하기
+			
+			- gedit $HADOOP_HOME/etc/hadoop/hdfs-site.xml (마스터에서만)
+				<configuration>
+					<property>
+						<name>dfs.replication</name>
+						<value>2</value>
+					</property>
+					<property>
+						<name>dfs.permissions</name>
+						<value>false</value>
+					</property>
+					<property>
+						<name>dfs.namenode.dir</name>
+						<value>file:/root/hadoop2/namenode</value>
+					</property>
+					<property>
+						<name>dfs.datanode.data.dir</name>
+						<value>file:/root/hadoop2/datanode</value>
+					</property>
+				</configuration>
+			
+			- gedit $HADOOP_HOME/etc/hadoop/hdfs-site.xml (slave들만)
+				<configuration>
+					<property>
+						<name>dfs.replication</name>
+						<value>2</value>
+					</property>
+					<property>
+						<name>dfs.permissions</name>
+						<value>false</value>
+					</property>
+					<property>
+						<name>dfs.datanode.data.dir</name>
+						<value>file:/root/hadoop2/datanode</value>
+					</property>
+				</configuration>
+			
+			d) mapred-site.xml 작성 (모든 노드에서 작성)
+			
+			cd $HADOOP_HOME/etc/hadoop
+			ll
+			map~~~ template 이라는파일을 복사해서 써야됨
+			cp mapred-site.xml.template mapred-site.xml
+			
+			gedit mapred-site.xml
+			---------------------
+				<configuration>
+					<property>
+						<name>mapreduce.framework.name</name>
+						<value>yarn</value>
+					</property>
+				</configuration>
+				
+			- yarn-site.xml 작성
+				gedit yarn-site.xml
+	====================================
+	<property>
+		<name>yarn.nodemanager.aux-services</name>
+		<value>mapreduce_suffle</value>
+	</property>
+	<property>
+		<name>yarn.nodemanager.aux-services.mapreduce.suffle.class</name>
+		<value>org.apache.hadoop.mapred.ShuffleHandler</value>
+	</property>
+		
+		================================
+		
+	scp -rp mapred-site.xml root@slave1:/root/hadoop2/etc/hadoop/mapred-site.xml
+	scp -rp yarn-site.xml root@slave1:/root/hadoop2/etc/hadoop/yarn-site.xml
+	
+	scp -rp mapred-site.xml root@slave2:/root/hadoop2/etc/hadoop/mapred-site.xml
+	scp -rp yarn-site.xml root@slave2:/root/hadoop2/etc/hadoop/yarn-site.xml
+
+	맵리듀스란 분산 병렬 처리방식으로 여러개의 작업노드에 작업을 분산하여 
+		병렬 수행할수 있도록 프레임워크 제공 ( 동시에 작업할수 있게)
+		
+	e) masters, slaves 파일편집(master에서만 작업)
+		cd $HADOOP_HOME/etc/hadoop
+		ll 마스터즈 파일이 없음 
+		
+		gedit masters
+		=============
+		master
+		==========
+		
+		gedit slaves
+		==========
+		master
+		slave1
+		slave2
+		slave3
+		
+	f) 방화벽 내림(모든노드)
+		systemctl stop firewalld.service
+		systemctl disable firewalld.service
+		
+	g) 네임노드 포맷, 하둡가동(master에서만 작업)
+		hdfs namenode -format
+		start-dfs.sh
+		start-yarn.sh  (리소스와 노드매니저)
+		jps
+			master: NameNode,SecondaryNameNode,DataNode,ResourceManager,NodeManager
+			slave : DataNode,NodeManager
+			
+		*** 데이터 노드가 안뜰경우
+		
+		stop-dfs.sh
+		stop-yarn.sh
+		hadoop2에서 ll 
+		pids 지우기   rm -rf pids
+		마스터에서만
+		
+		rm -rf $HADOOP_HOME/namenode
+		mkdir $HADOOP_HOME/namenode
+			
+		chmod 777 namenode  ( ll 로 확인하기
+			
+		
+		rm -rf $HADOOP_HOME/datanode
+		mkdir $HADOOP_HOME/datanode
+			
+		chmod 777 datanode
+		
+		slave들만 
+		--------------------------------
+		rm -rf $HADOOP_HOME/datanode
+		mkdir $HADOOP_HOME/datanode
+			
+		chmod 777 datanode
+		
+		마스ㅡ터에서
+		-------------------
+		hdfs namenode -format
+		start-dfs.sh
+		start-yarn.sh
+		jps
+		
+		h) 하둡시스템 가동
+			마스터에서 
+			start-dfs.sh
+			start-yarn.sh
+			jps
+			
+			slave에서
+			jps
+			
+			master에서 
+			http://master:50070
+			원격으로 http://192.168.10.1:50070
+			
+4) 하둡 시스템 활용
+		
+	1) wordcount 라는 분석프로그램 실행 
+		hdfs dfs -mkdir /user
+		hdfs dfs -mkdir /user/root
+		hdfs dfs -mkdir /user/root/conf
+		
+		hdfs dfs -ls -R /
+		
+		hdfs dfs -mkdir /upload
+		hdfs dfs -copyFromLocal $HADOOP_HOME/README.txt /upload/README.txt
+		hdfs dfs -put $HADOOP_HOME/README.txt /upload/README.txt
+		
+		hdfs dfs -ls /upload
+		확인하기
+		
+		cd $HADOOP_HOME/share/hadoop/mapreduce
+		ls -l  여러 파일들 확인하기
+		
+		예제프로그램을 실행시키는데, wordcount 프로그램실행, 업로드에있는 readme,
+		
+		hadoop jar hadoop-mapreduce-examples-2.10.0.jar wordcount
+		/upload/README.txt ~/wordcount_output
+		로그를보면 처음엔 맵과 리듀스 둘다 안되있고 맵먼저하고 리듀스함
+		
+		-safe mode 에러 발생시
+			hdfs dfsadmin -safemode leave
+			
+		hdfs dfs -ls ~/wordcount_output
+		hdfs dfs -cat ~/wordcount_output/part-r-00000
+		단어 빈도수 확인 가능
+		
+		-hdfs 로부터 다운로드
+			hdfs dfs -get
+			hdfs dfs -copyToLocal
+			
+			결과파일을 로컬로 다운로드
+			hdfs dfs -copyToLocal ~/wordcount_output/part-r-00000
+			~/result.txt
+	2) HDFS : hdfs dfs -명령어
+		a) 도움말
+			hdfs dfs -help
+			hdfs dfs -help copyToLocal
+		b) 목록 조회
+			hdfs dfs -ls 
+			hdfs dfs -ls 경로
+			hdfs dfs -ls -R 경로   전부다 
+			
+		c) 파일 용량 확인
+			hdfs dfs -du /
+			
+		d) 파일 내용 보기 : cat, text 
+		
+		e) 디렉토리 생성
+			hdfs dfs -mkdir 디렉토리명
+			
+		f) 파일 복사 
+			-업로드
+				hdfs dfs -put
+				hdfs dfs -copyFromLocal
+				
+			- 다운로드
+				hdfs dfs -get
+				hdfs dfs -copyToLocal 
+				
+			- 여러 개의 파일을 하나로 합쳐서 다운로드 : getmerge
+				cd ~
+				hdfs dfs -getmerge ~/wordcount_output result
+				cat result
+			
+			- 파일복사
+				hdfs dfs -cp ~/wordcount_output/part-r-00000 /upload/part0
+				hdfs dfs -ls /upload
+			
+			- 파일 이동
+				hdfs dfs -mv 이동전 경로 이동후 경로
+				hdfs dfs -moveFromLocal 로컬경로 hdfs경로
+				
+			-파일 삭제
+				hdfs dfs -rm 파일
+				hdfs dfs -rm -r 디렉토리
+				hdfs dfs -rm -rf : 디렉토리 강제삭제
+				
+			-카운트값 조회
+				hdfs dfs -count /upload
+				hdfs dfs -count /
+				---------------------
+				디렉토리 개수 	파일의 개수 	파일 사이즈 
+				
+			- 파일 내용 일부분 확인
+				hdfs dfs -tail 파일명
+				hdfs dfs -head 파일명
+				hdfs dfs -cat 파일명 | head -10
+			- 권한 변경
+				hdfs dfs -chmod 숫자 디릭토리 혹은 파일들
+			- 0바이트 파일 생성
+				hdfs dfs -touchz 파일명
+		
+		3) 자바 프로그래밍1
+			project type : Java Project
+			project name : Hadoop
+			package name : hdfs
+			java name : HdfsFile.java
+			
+		하둡 -> share -> hadoop -> common 
+		라이브러리 .jar 파일 3개가 있음 
+		
+		이클립스에 hadoop_lib 폴더 생성하기 
+		폴더에 3개 라이브러리 옮기기
+		
+		하둡 -> share -> hadoop -> mapreduce
+		라이브러리 9개 옮기기 
+		
+		프로젝트 우클릭 빌드패스 -> configure 빌드패스 -> 라이브러리 선택
+		기본 자바 라이브러리만 등록되있으ㅡ므로 라이브러리 추가 Add JARs...,Add External JARs...
+		Add JARs = 프로젝트 내부안에 있을때 
+		모두 등록하기 12개 
+		Add External JARs = 프로젝트가 밖에 라이브러리가 있을떄 
+=====================================================		
+		Configuration() import하기 하둡안에 있는 conf
+System.out.println("사용방법 : HdfsFile <filename> <contents>");
+args[0] filename 이고  new Path(args[0]) :hdfs 내의 하둡의 실제 경로
+기존의 파일명이 있으면 지우기위해 hdfs.delete(path, true);
+==============
+export java -> jar -> 이름 : browse위치 적당히, Hadoop.jar 
+
+	WinScp 로 파일전송하기
+	Hadoop.jar선택 /root/에서 source디렉토리 생성
+		cd /root/source
+		hadoop jar Hadoop.jar hdfs.HdfsFile input.txt "Hello~~,HADOOP!!"
+		메인클래스명은 HdfsFile 이고 패키지 이름도 동반해야함(hdfs)
+		
+		hdfs dfs -ls input.txt
+		hdfs dfs -cat input.txt
+		
+	4) 자바 프로그래밍 2 : 단어의 빈도수 계산 프로그램
+		a) package name : count
+		b) 
+		
+	맵리듀스 프레임워크 단계적 분석 읽어보기 
+	분산만하고 쓰지못하면 소용없는데 잘쓰게 한게 맵리듀스 
+		c) MapReduce 실행방식 
+			맵:(k1, v1) => list(k2, v2) 
+			리듀스 : (k2, list(v2)) 하나의 키에 값을 여러개 취합 
+	=> list(k3,v3) 
+	
+		- 입력 데이터 
+			read a book 
+			write a book
+			
+		- 맵으로 변환 (key : line number, value :문장)
+			1. read a book
+			2. write a book
+			
+		-정렬과 병합 (key : 단어 , value: 단어수 )
+			<read , 1>
+			<a , 1>
+			<book, 1>
+			<write, 1>
+			<a, 1>
+			<book, 1>
+			
+		- 리듀스 단계 :(key :단어, value : 단어수의 리스트)
+			<read, (1)>
+			<a, (1,1)>
+			<book, (1,1)>
+			<write, (1)>
+			
+		- 실행결과 : (key : 단어, value: 리스트의 합계)
+			<read, 1>
+			<a, 2>
+			<book, 2>
+			<write, 1> 
+			
+		d) 맵리듀스 프로그래밍 요소
+		- 데이터 타입
+			맵리듀스 프로그램에서 키와 값으로 사용되는 모든 데이터 타입은 반드시
+			WritableComparable 인터페이스를 구현해야 한다.
+			--------------------------------
+			BooleanaWritable 	: Boolean
+			ByteWritable 		:단일 byte
+			DoubleWritable 		: Double
+			FloatWritable
+			IntWritable 
+			LongWritable 
+			TextWritable 
+			NullWritable
+			이런식의 클래스 사용해야함
+		
+		- Mapper 
+			key와 value로 구성된 입력 데이터를 전달받아 데이터를 가공하고 분류해
+			새로운 데이터 목록을 생성됨
+		- Partitioner(선택사항)
+			맵 태스크의 출력 데이터가 어떤 리듀스 태스크로 전달될지 결정
+		- Reducer 
+			맵 태스크의 출력데이터를 입력 데이터로 전달받아 집계 연산 수행 
+		- Combiner
+			Mapper 의 출력 데이터를 입력 데이터 전달받아 연산을 수행하며
+			shuffle할 데이터의 크기를 줄일 경우 사용
+		- Output Format
+			TextOutputFormat
+			SequenceFileOutputFormat
+			SequenceFileAsBinaryOutputFormat
+			FilterOutputFormat
+			NullOutputFormat
+		e) 코드 작성하기
+			cd /root/source
+			
+			gedit input.txt
+			-------------
+			read a book
+			write a book
+			---------------
+			hdfs 폴더에 업로드 하기
+			hdfs dfs -put input.txt /upload/input.txt
+			
+			mapper 작성
+			===============
+			
+			오버라이드 -> 맵 선택 
+			map 함수는 문장의 개수만큼  호출된다
