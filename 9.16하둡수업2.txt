@@ -1,0 +1,166 @@
+6) 항공 운항 데이터
+      airline.zip 압축 풀기
+      - 1987년 ~ 2008년까지 21년간 미국 항공 운항 데이터
+      - 실습 자료 : 2006,2007, 2008 3년간 자료
+
+sql 접속
+
+mysql --local-infile -uroot -p1111
+
+create database airline;
+use airline
+create table ontime(
+      Year int,   -- 연도
+      Month int,   -- 월   
+      DayofMonth int,
+      DayofWeek int,
+      DepTime int,   -- 실제 출발 시간
+      CRSDepTime int,
+      ArrTime int,   -- 실제 도착 시간
+      CRSArrTime int,
+      UniqueCarrier varchar(5),  -- 항공사 코드
+      FlightNum int,
+      TailNum varchar(8),
+      ActualElapsedTime int,
+      CRSElapsedTime int,
+      AirTime int,
+      ArrDelay int,   -- 도착 지연 시간
+      DepDelay int,   -- 출발 지연 시간
+      Origin varchar(3),
+      Dest varchar(3),
+      Distance int,   -- 비행 거리(마일 기준)
+      TaxiIn int,
+      TaxiOut int,
+      Cancelled int,
+      CancellationCode varchar(1),
+      Diverted varchar(1),
+      CarrierDelay int,
+      WeatherDelay int,
+      NASDelay int,
+      SecurityDelay int,
+      LateAircraftDelay int
+);
+
+mysql --local-infile -uroot -p1111
+                                           
+use airline;
+
+show variables like '%infile%';
+
+SET GLOBAL local_infile=1;
+
+C -> programdata -> mysql -> mysql server -> my.ini로 이동
+----------------------------------------------------------------
+서버와 클라이언트 양쪽 모두 local-infile=1로 설정
+[SQL] 에
+local-infile=1 추가
+
+[SQLD] 에
+local-infile=1 추가
+----------------------------------------------------------------
+시작 메뉴 -> 서비스 -> MYSQL57 다시시작
+
+mysql --local-infile -uroot -p1111
+use airline
+
+load data
+local infile "파일 주소\\2006.csv"
+into table ontime
+fields terminated by ","
+lines terminated by "\n";
+
+load data
+local infile "파일 주소\\2007.csv"
+into table ontime
+fields terminated by ","
+lines terminated by "\n";
+
+load data
+local infile "C:\\Users\\id272\\LSJ\\BigData\\airline\\2008.csv"
+into table ontime
+fields terminated by ","
+lines terminated by "\n";
+
+select count(*) from ontime;
+select * from ontime limit 10;
+select * from ontime where year=0;
+delete from ontime where year=0;
+
+----------------------------------------------------------------
+The total number of locks exceeds the lock table size 메시지 발생 시
+my.ini 로 이동해서 
+innodb_buffer_pool_size=8M 을 innodb_buffer_pool_size=64M 로 바꿈
+----------------------------------------------------------------
+시작 메뉴 -> 서비스 -> MYSQL57 다시시작
+
+mysql --local-infile -uroot -p1111
+use airline;
+delete from ontime where year=0;
+
+- 출발 지연 데이터 분석
+(workbench에서도 확인해보자!)
+select year, month, count(*) from ontime
+where depdelay>0 group by year, month order by year, month;
+
+- Hadoop
+
+WinSCP에서 airline폴더 째로 -> source에 넣음   
+a) airline 데이터를 리눅스로 전송 (/root/source/airline)
+b) hdfs에서 작업
+   hdfs dfs -ls -R /
+               
+   만약 upload 폴더가 없으면
+   hdfs dfs -mkdir /upload
+               
+   airline 데이터를 hdfs로 업로드
+   hdfs dfs -put /root/source/airline /upload (upload로 옮김)
+
+   hdfs dfs -ls /upload/airline  (upload에 잘 들어가있는지 확인)
+
+
+
+
+*****이클립스 세팅******************
+share -> hadoop -> common
+ common-2.10.0.jar
+ ~test.jar
+ .jar 
+ 
+ 3개 라이브러리 가져오기
+ 
+ 맵리듀스를 위한 라이브러리 
+ share -> hadoop ->mapreduce
+ 9개 라이브러리 복사 
+ 
+ hadoop 프로젝트 -> 빌드패스 -> configure buildpath - > libraries 탭
+ Add JARs 눌러서 추가 
+ 
+ c) Java Programing 출발 지연 
+	package name : airline 
+	class name : 
+		DepartureDelayMapper
+		DelayCounterReducer
+		DepartureDelayCount
+		AirlinePerformanceParser 
+		
+		(DTO 패턴)
+		
+		작성후 export 
+		/root/source 에 Hadoop.jar 보내기 
+		hadoop.jar 파일중에 airline 클래스 프로그램을 실행하겠다.
+		upload에 airline데이터를 넣고  결과는 ~/dep_delay_count 폴더에 저장하겠다.
+		hadoop jar /root/source/Hadoop.jar airline.DepartureDelayCount 
+	->	/upload/airline ~/dep_delay_count 
+	
+		hdfs dfs -cat ~/dep_delay_count/part-r-00000
+		
+		
+		도착 지연 횟수 구하기
+			ArrivalDelayCountMapper
+			DelayCountReducer(기존 클래스 그대로 이용)
+			ArrivalDelayCount
+			
+		hadoop jar /root/source/Hadoop.jar airline.ArrivalDelayCount 
+	->	/upload/airline ~/arr_delay_count 
+
+		hdfs dfs -cat ~/arr_delay_count/part-r-00000
