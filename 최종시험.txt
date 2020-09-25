@@ -1,0 +1,191 @@
+1. mogodb를 이용한 복제 
+(1) Master에서 쓰는 명령어?
+
+1. mongodb를 이용한 복제
+
+(1) Master & Slave
+	- 노드 3개 준비
+		Master : port 10000
+		Slave1 : port 10001
+		Slave2 : port 10002
+
+	- 3대의 서버 실행
+		mongod --dbpath c:\mongowork\master --port 10000 --master
+		mongod --dbpath c:\mongowork\slave1 --port 10001 --slave --source localhost:10000
+		mongod --dbpath c:\mongowork\slave2 --port 10002 --slave --source localhost:10000
+
+	- 3대의 클라이언트 준비
+		mongo localhost:10000
+		mongo localhost:10001
+		mongo localhost:10002
+
+	- master에서 작업
+		show collections
+		db.test.insert({a:1})
+		db.test.find()
+
+	- 각 slave에서 작업
+		show collections
+		db.setSlaveOk()
+		db.test.find()
+		db.test.insert({b:2})
+
+	- 첫번째 slave에 결함 생성
+		slave1의 서버 중지
+		slave1의 db 삭제
+
+		다시 slave1 가동
+		mongod --dbpath c:\mongowork\slave1 --port 10001 --slave --source localhost:10000
+
+		클라이언트 재접속
+		mongo localhost:10001
+		
+=============================================================================================
+		2. mongodb를 이용한 분산 => 실행하는 예제 
+
+(1) config 서버 : ReplicaSet으로 구현(3대)
+	c:\mongowork\shard\config1
+	c:\mongowork\shard\config2
+	c:\mongowork\shard\config3
+
+	mongod --configsvr --replSet configRepl --dbpath c:\mongowork\shard\config1 --port 20001
+	mongod --configsvr --replSet configRepl --dbpath c:\mongowork\shard\config2 --port 20002
+	mongod --configsvr --replSet configRepl --dbpath c:\mongowork\shard\config3 --port 20003
+
+	- primary 설정
+		20001포트의 서버로 접속
+		
+		var config = {"_id" : "configRepl", "members" : [
+			{"_id" : 0, "host" : "localhost:20001"},
+			{"_id" : 1, "host" : "localhost:20002"},
+			{"_id" : 2, "host" : "localhost:20003"}
+		]}
+
+		rs.initiate(config)
+===========================================================
+
+hdfs 명령어 
+ a) 도움말 ~ f) 파일 복사 
+ a) 도움말
+			hdfs dfs -help
+			hdfs dfs -help copyToLocal
+
+		b) 목록 조회
+			hdfs dfs -ls
+			hdfs dfs -ls 경로
+			hdfs dfs -ls -R 경로  또는 hdfs dfs -lsr 경로
+			hdfs dfs -ls -R /
+
+		c) 파일 용량 확인
+			hdfs dfs -du /
+
+		d) 파일 내용 보기 : cat, text
+
+		e) 디렉토리 생성
+			hdfs dfs -mkdir 디렉토리명
+
+		f) 파일 복사
+			- 업로드
+				hdfs dfs -put
+				hdfs dfs -copyFromLocal
+
+			- 다운로드
+				hdfs dfs -get
+				hdfs dfs -copyToLocal
+			
+			- 여러 개의 파일을 하나로 합쳐서 다운로드 : getmerge
+				cd ~
+				hdfs dfs -getmerge ~/wordcount_output result
+				cat result
+
+			- 파일 복사
+				hdfs dfs -cp ~/wordcount_output/part-r-00000 /upload/part0
+				hdfs dfs -ls /upload
+
+				hdfs dfs -getmerge /upload c
+				cat c
+
+			- 파일 이동
+				hdfs dfs -mv 이동전 경로  이동후 경로
+				hdfs dfs -moveFromLocal 로컬경로  hdfs경로
+		
+		g) 파일 삭제
+			hdfs dfs -rm 파일
+			hdfs dfs -rm -r 디렉토리
+			hdfs dfs -rm -rf : 디렉토리 강제 삭제	
+
+		h) 카운트 값 조회
+			hdfs dfs -count /upload
+			hdfs dfs -count /
+			--------------------------------
+			디렉토리 갯수	파일의 갯수	파일 사이즈
+
+		i) 파일 내용 일부분 확인
+			hdfs dfs -tail 파일명
+			hdfs dfs -head 파일명
+			hdfs dfs -cat 파일명 | head -10
+
+		j) 권한 변경
+			hdfs dfs -chmod 숫자 디렉토리 혹은 파일
+
+		k) 0바이트 파일 생성
+			hdfs dfs -touchz 파일명
+ 
+ =================================
+ 
+ 하둡 설정 문제 
+ 	*. hadoop 설치
+		- 압축 풀기
+		- hadoop 환경 설정
+		gedit /etc/profile
+		--------------------------
+		java 설정... 이후에 추가
+
+		export HADOOP_HOME=/root/hadoop2
+		export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+
+		export HDFS_NAMENODE_USER="root"
+		export HDFS_DATANODE_USER="root"
+		export HDFS_SECONDARYNAMENODE_USER="root"
+		export YARN_RESOURCEMANAGER_USER="root"
+		export YARN_NODEMANAGER_USER="root"
+
+		저장 후 재부팅
+		hadoop version
+=====================================================
+
+(2) ReplicaSet
+	- 4대의 서버 가동
+		mongod --dbpath c:\mongowork\db1 --port 10001 --replSet rptmongo --oplogSize 10
+		mongod --dbpath c:\mongowork\db2 --port 10002 --replSet rptmongo --oplogSize 10
+		mongod --dbpath c:\mongowork\db3 --port 10003 --replSet rptmongo --oplogSize 10
+		mongod --dbpath c:\mongowork\arbit --port 10004 --replSet rptmongo --oplogSize 10
+
+	- primary로 지정할 client 접속
+		mongo localhost:10001
+		use admin
+
+		db.runCommand(
+			{"replSetInitiate" : {"_id" : "rptmongo", "members" : [ 
+				{"_id" : 1, "host" : "localhost:10001"},
+				{"_id" : 2, "host" : "localhost:10002"},
+				{"_id" : 3, "host" : "localhost:10003"},
+				{"_id" : 4, "host" : "localhost:10004", arbiterOnly : true}
+			] }}
+		)
+
+	- primary에서 입력 테스트
+		use test
+		db.test.insert({a : 1})
+		db.test.find()
+
+	- secondary에서 테스트
+		use test
+		db.setSlaveOk()
+		db.test.find()
+		db.test.insert({b : 2})
+
+	- primary 서버 장애
+		primary 서버 중지
+		primary db 삭제
+

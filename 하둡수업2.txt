@@ -1,0 +1,457 @@
+(5) Hive
+
+	1) 하둡 기반에서 실행되는 라이브러리
+	2) Java코드 대신 SQL구문 사용(HiveQL)
+	3) hive2까지만 사용 가능
+	
+3) 설치 
+	-http://hive.apache.org
+	- 2.3.7 버전 다운로드 
+	- tar zxvf 하둡압축파일명
+	- mv apache압축파일명 hive2
+	
+	gedit /etc/profile
+	-----------------
+	export HIVE_HOME=/root/hive2
+	export PATH=$PATH:HIVE_HOME/bin
+	
+	source /etc/profile
+	stop-dfs.sh
+	stop-yarn.sh
+	reboot
+	
+	hive2 -> bin -> 에서 명령어 입력
+	./hive 
+	quit;
+	
+	- mysql connection을 hive2/lib에 복사
+	- hive2/conf로 이동
+		hive-site.xml 
+MYSQL
+	- 계정설정
+		create user hive@localhost identified by 'hive';
+		grant all privileges on hive.* to hive@localhost
+		grant all privileges on *.* to hive'@'%' identified by 'hive'
+		flush privileges
+		
+	- DB 생성:
+		mysql -uhive -phive
+		create database hive;
+		use hive;
+		show database
+		
+		워크밴치에서는 
+		Name 아무렇게나 유저네임 : hive 접속해서 비밀번호 hive
+		
+	-mysql 을 외부에서 접속이 허용되도록 하는 설정
+	(윈도우 방화벽 포트 개방)
+		제어판\시스템 및 보안\Windows Defender 방화벽
+		고급설정
+		인바운드 -> 새규칙 -> 포트 
+		tcp, 특정 로컬 포트 : 3306
+		이름 : mysql  작성후 마침
+		-> 3306은 방화벽에서 소통가능하게 됬음 
+		
+	MetaStore 초기화 작업
+		schematool -initSchema -dbType mysql 
+		hive2의 빈폴더에 있음 명령어 없으면
+		./schematool -initSchema -dbType mysql 
+		
+		
+   5) hdfs에 하이브 작업공간 설정
+
+      $ hdfs dfs -ls R
+      
+      // user 디렉토리 없으면 만들기 
+      // $ hdfs dfs -mkdir /user 
+      
+      $ hdfs dfs -mkdir /user/hive 
+      $ hdfs dfs -mkdir /user/hive/warehouse 
+      
+      $ hdfs dfs -ls /tmp 
+      
+      // 그룹 사용자에게 실행권한을 주겠다 
+      $ hdfs dfs -chmod g+x /tmp
+      $ hdfs dfs -chmod g+x /user/hive 
+      $ hdfs dfs -chmod g+x /user/hive/warehouse 
+      
+      $ hive 
+      
+   6) hive에 저장할 데이터 준비 
+      - emp.zip 
+      - emp.csv, dept.csv, salgrade.csv 3개의 파일을 리눅스에 전송 
+      
+      - hive에 테이블 3개 준비
+      
+         master에서 hive 접속된 상태로,
+         
+         hive> create table dept(
+                  dname string,
+                  loc string,
+                  deptno int
+               ) row format delimited fields terminated by ',';
+
+         hive> show tables;
+         hive> desc dept;
+      
+         hive> create table emp(
+                  empno int,
+                  ename string,
+                  job string,
+                  mgr int,
+                  hiredate string,
+                  sal int,
+                  comm int,
+                  deptno int
+               ) row format delimited fields terminated by ',';
+
+         hive> create table salgrade(
+                  grade int,
+                  losal int,
+                  hisal int
+               ) row format delimited fields terminated by ',';
+
+      - 3개의 csv파일을 하이브 테이블로 로드 
+      
+         hive> load data local inpath '/root/source/emp.csv' overwrite into table emp;
+         hive> load data local inpath '/root/source/dept.csv' overwrite into table dept;
+         hive> load data local inpath '/root/source/salgrade.csv' overwrite into table salgrade;
+         
+		 set hive.cli.print.header=true;
+		 
+         hive> select * from emp;
+		 hive> select * from dept;
+		 hive> select * from salgrade;
+		 
+		 실제 데이터는 하이브의 웨어하우스 디렉토리에 저장
+		 hdfs dfs -ls /user/hive/warehouse
+		 hdfs dfs -ls /user/hive/warehouse/emp
+		 
+		 ******윈도우에서 mysql -> use hive;
+		 select tbl_name from tbls; 메타 정보 확인
+		 
+		 hive ->
+		 select d.deptno, d.dname, e.ename, e.sal from emp e, dept d
+		 where e.deptno=d.deptno;
+		 
+		 select d.ename, d.deptno, e.dname from emp e, dept d
+		 where e.deptno=d.deptno and e.job like '%CLERK%';
+		 
+		 select deptno, count(*) cnt, sum(sal) sum_sal avg(sal) avg_sal from emp
+		 group by deptno order by deptno;
+		 
+		 
+	항공운항 데이터를 위한 테이블 만들기
+	create table ontime ~~~~~~~~~~]
+	
+	- 리눅스에 있는 airline  데이터에서 각 파일의 첫번째 줄을 삭제
+	
+	cd /root/source/airline
+	
+	sed -e '1d' 2006.csv > 2006_new.csv
+	sed -e '1d' 2007.csv > 2007_new.csv
+	sed -e '1d' 2008.csv > 2008_new.csv
+	
+- 3개의 파일을 hive 테이블로 로드
+	load data local inpath '/root/source/airline/2006_new.csv' overwrite into table ontime partition(delayyear='2006')
+	load data local inpath '/root/source/airline/2007_new.csv' overwrite into table ontime partition(delayyear='2007')
+	load data local inpath '/root/source/airline/2008_new.csv' overwrite into table ontime partition(delayyear='2008')
+	
+	select * from ontime limit 10;
+	select count(*) from ontime;
+	
+- 출발 지연 검수
+	select year, month, count(*) from ontime
+	where depdelay>0 group by year, month order by year, month;
+	
+- 파일목록 확인
+	hdfs dfs -ls /user/hive/warehouse/ontime
+	hdfs dfs -ls /user/hive/warehouse/ontime/delayyear=2006
+	ontime 안에 폴더명이 delayyear=2006 , 2007, 2008 3개있음
+	
+- 도착 지연 건수 
+	select year, month, count(*) from ontime
+	where arrdelay>0 group by year, month order by year, month;
+	
+- 조인 실습 
+	http://stat-computing.org/dataexpo/2009/supplemental-data.html
+	
+	airports.csv , carriesrs.csv 를 리눅스 airline폴더에 업로드
+		 
+	carriers.csv 파일의 항공사 코드에서 "" 제거
+	
+	find . -name carriers.csv -exec perl -p -i -e 's/"//g' {} \;
+	cat carriers.csv
+	
+	create table carrier_code(
+		code string,
+		description string
+	) row format delimited fields terminated by ',' terminated by 
+	'\n' stored as textfile;
+	
+	show tables;
+	
+	load data local inpath '/root/source/airline/carriers.csv'
+	overwrite into table carrier_code;
+	
+	select a.year, a.uniquecarrier, c.description, count(*)
+	from ontime a join carrier_code c 
+	on a.uniquecarrier=c.code
+	where a.arrdelay>0
+	group by a.year, a.uniquecarrier, c.description
+	order by a.year, a.uniquecarrier, c.description;
+		 
+	7) 하이브 실행 결과 저장 
+	
+	create table ontime_depdelay(
+		year int,
+		month int,
+		count int
+	);
+		 
+	insert overwrite table ontime_depdelay
+	select year, month, count(*) from ontime
+	where arrdelay>0 group by year, month order by year, month;
+	
+	select * from ontime_depdelay limit 20;
+	
+	- hdfs 에 저장
+	
+		insert overwrite directory '/tmp/airport_result'
+		select * from ontime_depdelay;
+		
+		hdfs dfs -ls /tmp/airport_result
+		hdfs dfs -cat /tmp/airport_result/000000_0
+		
+	8) Bucket 활용
+		hdfs dfs -ls /user/hive/warehouse/ontime
+		hdfs dfs -ls /user/hive/warehouse/ontime/delayyear=2006
+		파일을 쪼개는게 버킷 
+		
+		- uniquecarrier 를 이용해서 파일을 20개로 나누도록 하자.
+		- 파일들을 담기위한 테이블
+		create table ontime2(
+			year int, 
+			month int,
+			uniquecarrier string,
+			arrdelay int,
+			depdelay int ) clustered by (uniquecarrier) into 20 buckets;
+			
+		insert overwrite table ontime2
+		select year, month, uniquecarrier, arrdelay, depdelay, depdelay from ontime;
+		
+		hdfs dfs -ls /user/hive/warehouse/ontime2
+		
+		- 첫번째 버킷에서 샘플을 조회
+		
+		select uniquecarrier count(*) from ontime2
+		tablesample(bucket 1 out of 20)group by uniquecarrier;
+		
+		
+		(6) Pig 
+			1) 다운로드 및 세팅 
+				http://pig.apache.org 
+				0.17 tar.gz 다운ㄷ받은후 
+				master의 root 디렉토리 전송
+				압축 풀기 : tar axvf pig-0.17.0.tar.gz
+				pig017로 변경 
+				mv pig-0.17.0 pig017
+				rm pig-0.17.0.tar.gz
+			- 환경변수 설정
+			
+		gedit /etc/profile
+		===================
+		export PIG_HOME=/root/pig017
+		export PATH=&PATH:PIG_HOME/bin
+		==============
+		작성후
+		source /etc/profile
+		reboot
+		
+		pig 명령어 
+	2) jobHistoryServer 실행
+	
+		mr-jobhistory-daemon.sh start historyserver
+		jps 확인해보기
+		mr-jobhistory-daemon.sh stop historyserver
+		
+	3) 실습 1 : DUMP, STORE
+		-실습 데이터 
+		cat /etc/passwd
+		복사하기 원본말구
+		cp /etc/passwd /root/source/passwd
+		
+		- 실습 데이터를 hdfs 로 업로드
+			hdfs dfs -put /root/source/passwd /upload
+			hdfs dfs -ls /upload
+			
+		-pig 에서 작업
+		upload에있는 passwd 를 a라는변수에 넣어주겠다. 콜론으로 구별해서 
+		띄어 쓰기 잘하기 
+			A = LOAD '/upload/passwd' using PigStorage(':')
+		DUMP A;
+		A라는 변수에 뭐가 있는지 화면으로 보여주는것 
+		
+		B = FOREACH A GENERATE $0 AS id;
+		DUMP B;
+		실제 처리는 Dump 했을떄 
+		
+		STORE B INTO '/upload/pig_output/passwd';
+		
+		hdfs dfs -ls /upload/pig_output/passwd
+		hdfs dfs -ls /upload/pig_output/passwd/part-m-000000
+		
+	4) 실습 2: wordcount
+		- 샘플 데이터를 hdfs 로 전송
+			hdfs dfs -put $HADOOP_HOME/README.txt /upload
+			
+		- 맵리듀스 모드로 pig 실행
+			pig -x mapreduce
+			pig -x local 
+			
+		- 샘플 데이터를 A변수에 로드
+		A = LOAD '/upload/README.txt';
+		
+		자바로 wordcount 만들면 
+		맵, 리듀스 , 등등 클래스 3개 했었는데 
+		피그로 하면 간략하고 단순하게 가능 
+		
+		B = FOREACH A GENERATE FLATTEN(TOKENIZE((chararray)$0)) AS word;
+		DUMP B;
+		단어단위로 묶어주겠다.
+		C = GROUP B BY word;
+		단어별로 반복을 돈다
+		D = FOREACH C GENERATE group AS word, COUNT($1) AS count;
+		
+		STORE D INTO '/upload/pig_output/readme';
+		
+		- hdfs 에서 확인 
+		hdfs dfs -ls /upload/pig_output/readme
+		hdfs dfs -ls /upload/pig_output/part-r-000000
+	
+	5) 실습 3
+	
+	-http://hdr.undp.org/en/data
+	
+		hdi-data.csv , export-data.csv
+		
+	start-dfs.sh
+	stop-yarn.sh
+	pig
+	
+	
+	mr-jobhistory-daemon.sh start historyserver
+	- 터미널 하나 열어서 hdfs로 전송
+	/root/source 에 넣기 
+	
+	hdfs /upload에 넣기 
+	hdfs dfs -put /root/source/hi-data.csv /upload
+	hdfs dfs -ls /upload
+	
+	-1인당 국민 총소득(gni)이 2천달러 이상인 국가들 출력
+	(순위, 국가, hdi, 기대수명, Mean years of schooling, Expected years)
+	
+	A = LOAD '/upload/hdi-data.csv' using PigStorage(',')
+->  AS (id:int, country:chararray, hdi:float, lifeex:int, mych:int, eysch:int,gni:int);
+
+	B = FILTER A BY gni >= 2000;
+	
+	C = ORDER B BY gni;
+	
+	STORE C INTO '/upload/hdi';
+	====================================
+	hdfs dfs -ld /upload/hdi
+	hdfs dfs -cat /upload/hdi/part-r-000000
+	
+- hdi-data.csv와 export-data 조인
+
+	hdfs dfs -put /root/source/export-data.csv /upload
+	hdfs dfs -ls /upload 
+	
+	D = LOAD '/upload/export-data.csv' using PigStorage(',')
+->  AS (country:chararray, export:float);
+
+	E = JOIN C BY country, D BY country;
+	
+	DUMMP E;
+	
+	mr-jobhistory-daemon.sh stop historyserver
+	
+	(7) 스파크 
+	하둡은 여러개의 하드디스크를 하나의 서버처럼 클러스터 방식으로 묶어서 썻는데
+	스파크는 각서버의 메모리를 하나의 메모리 처럼 묶어주는 방식 
+	- 인- 메모리 방식의 분산 처리 시스템 
+	
+	프로그램준비 
+	http://spark.apache.org
+	spark-2.4.7-bin-hadoop2.7.tgz
+	tar zxvf spark-xxx
+	
+	설치폴더명은 spark로 변경 : mv spark-xxx spark
+	
+	-환경 변수 설정
+		gedit /etc/profile
+		===================
+		export SPARK_HOME=/root/spark
+		export PATH=$PATH:$SPARK_HOMEM/bin:$SPARK_HOME/sbin
+		====================
+		source /etc/profile
+		reboot
+		
+	- 환경변수 테스트
+		spark-shell : scala 언어 사용
+	
+	sc : SparkContext
+	spark : SparkSession 
+	
+	pyspark : python 언어 사용
+		sc
+		spark
+		3+4
+		exit()
+		
+	spark-sql: sql 언어 사용 
+	
+	-------------------------
+	cd /usr/local
+	ll
+	jkd11 확인하기 
+	jdk 8 버전을 깔아서
+	jdk11로 바꿔주고
+	원래 jdk11버전은 jdk11_bak 으로 저장하기 
+	
+	
+	2) StandAlone 설치 
+		free -g
+		CPU  개수확인
+		grep -c processor /proc/cpuinfo
+		
+		- cd $SPARK_HOME/conf 
+		cp spark-env.sh.template spark-env.sh
+		
+		gedit spark-env.sh
+		=======================
+		export SPARK_WORKER_INSTANCES=3
+		
+		spark/sbin에 있음 
+		
+	
+		
+		./start-master.sh
+		
+		http:/localhost:8080
+		http://192.168.10.1:8080
+		옵션 넣어줘야됨 512메가 넣겠다. 
+		start-slave.sh spark://master:7077 -m 512 -c 1
+		./start-slave.sh spark://master:7077 -m 512 -c 1
+		
+		
+	=====================
+	9.25 일
+	
+	start-master.sh
+	start-slave.sh spark://master:7077 -m 512 -c 1
+	jps 확인하기
+	stop-slave.sh
+	stop-master.sh
+	
